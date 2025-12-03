@@ -17,6 +17,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .anyRequest().permitAll() // 🔥 acceso total
                 )
+                .headers(headers -> headers
+                        .frameOptions(frame -> frame.sameOrigin()) // H2 console necesita iframes
+                )
                 .httpBasic(Customizer.withDefaults());
 
         return http.build();
