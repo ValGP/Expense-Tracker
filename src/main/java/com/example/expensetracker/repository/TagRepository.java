@@ -10,4 +10,7 @@ import java.util.List;
 public interface TagRepository extends JpaRepository<Tag, Long> {
 
     List<Tag> findByOwner(User owner);
+
+    boolean existsByOwnerAndNameIgnoreCase(User owner, String name);
+
 }

@@ -1,9 +1,15 @@
 package com.example.expensetracker.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
+@Data
+@NoArgsConstructor
 public class IncomeRequest {
 
     private Long ownerId;
@@ -11,34 +17,9 @@ public class IncomeRequest {
     private Long categoryId;
     private BigDecimal amount;
     private String description;
+
+    @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate operationDate;
+
     private List<Long> tagIds;
-
-    public Long getOwnerId() {
-        return ownerId;
-    }
-
-    public Long getDestinationAccountId() {
-        return destinationAccountId;
-    }
-
-    public Long getCategoryId() {
-        return categoryId;
-    }
-
-    public BigDecimal getAmount() {
-        return amount;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public LocalDate getOperationDate() {
-        return operationDate;
-    }
-
-    public List<Long> getTagIds() {
-        return tagIds;
-    }
 }

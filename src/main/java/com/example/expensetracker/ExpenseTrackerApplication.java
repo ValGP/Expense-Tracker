@@ -55,9 +55,8 @@ public class ExpenseTrackerApplication {
                         return userRepository.save(u);
                     });
 
-            // ACCOUNTS
-            if (accountRepository.count() == 0) {
-
+            // ACCOUNTS (por owner + name)
+            if (!accountRepository.existsByOwnerAndName(demoUser, "Cash Wallet")) {
                 Account cash = Account.builder()
                         .owner(demoUser)
                         .name("Cash Wallet")
@@ -67,7 +66,10 @@ public class ExpenseTrackerApplication {
                         .active(true)
                         .createdAt(LocalDateTime.now())
                         .build();
+                accountRepository.save(cash);
+            }
 
+            if (!accountRepository.existsByOwnerAndName(demoUser, "Bank Account")) {
                 Account bank = Account.builder()
                         .owner(demoUser)
                         .name("Bank Account")
@@ -77,13 +79,11 @@ public class ExpenseTrackerApplication {
                         .active(true)
                         .createdAt(LocalDateTime.now())
                         .build();
-
-                accountRepository.save(cash);
                 accountRepository.save(bank);
             }
 
-            // CATEGORIES
-            if (categoryRepository.count() == 0) {
+// CATEGORY (por owner + name)
+            if (!categoryRepository.existsByOwnerAndNameIgnoreCase(demoUser, "Food")) {
                 Category food = Category.builder()
                         .owner(demoUser)
                         .name("Food")
@@ -91,27 +91,28 @@ public class ExpenseTrackerApplication {
                         .colorHex("#FF8800")
                         .active(true)
                         .build();
-
                 categoryRepository.save(food);
             }
 
-            // TAGS
-            if (tagRepository.count() == 0) {
+// TAGS (por owner + name)
+            if (!tagRepository.existsByOwnerAndNameIgnoreCase(demoUser, "UTN")) {
                 Tag utn = Tag.builder()
                         .owner(demoUser)
                         .name("UTN")
                         .active(true)
                         .build();
+                tagRepository.save(utn);
+            }
 
+            if (!tagRepository.existsByOwnerAndNameIgnoreCase(demoUser, "Friends")) {
                 Tag friends = Tag.builder()
                         .owner(demoUser)
                         .name("Friends")
                         .active(true)
                         .build();
-
-                tagRepository.save(utn);
                 tagRepository.save(friends);
             }
+
         };
     }
 }
