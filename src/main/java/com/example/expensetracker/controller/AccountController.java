@@ -2,6 +2,7 @@ package com.example.expensetracker.controller;
 
 import com.example.expensetracker.dto.account.AccountCreateRequest;
 import com.example.expensetracker.dto.account.AccountResponse;
+import com.example.expensetracker.dto.account.AccountBalanceResponse;
 import com.example.expensetracker.service.AccountService;
 import org.springframework.web.bind.annotation.*;
 
@@ -31,7 +32,7 @@ public class AccountController {
     }
 
     @GetMapping("/{id}/balance")
-    public BigDecimal balance(@PathVariable Long id) {
-        return accountService.calculateCurrentBalance(id);
+    public AccountBalanceResponse balance(@PathVariable Long id) {
+        return accountService.getBalance(id);
     }
 }

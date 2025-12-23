@@ -2,6 +2,7 @@ package com.example.expensetracker.service;
 
 import com.example.expensetracker.dto.account.AccountCreateRequest;
 import com.example.expensetracker.dto.account.AccountResponse;
+import com.example.expensetracker.dto.account.AccountBalanceResponse;
 import com.example.expensetracker.model.Account;
 import com.example.expensetracker.model.Currency;
 import com.example.expensetracker.model.User;
@@ -145,5 +146,21 @@ public class AccountService {
                 .add(transfersIn)
                 .subtract(expensesOut)
                 .subtract(transfersOut);
+    }
+
+    public AccountBalanceResponse getBalance(Long accountId) {
+
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+
+        BigDecimal balance = calculateCurrentBalance(accountId);
+
+        return new AccountBalanceResponse(
+                account.getId(),
+                account.getOwner().getId(),
+                account.getName(),
+                account.getCurrency() != null ? account.getCurrency().getCode() : null,
+                balance
+        );
     }
 }

@@ -59,7 +59,7 @@ public class TransactionService {
         Transaction tx = Transaction.builder()
                 .owner(owner)
                 .type(TransactionType.EXPENSE)
-                .state(TransactionState.PENDING)
+                .state(TransactionState.CONFIRMED)
                 .amount(amount)
                 .sourceAccount(sourceAccount)
                 .destinationAccount(null)
@@ -76,7 +76,7 @@ public class TransactionService {
 
         // En este punto podríamos aplicar reglas extra (límites, saldo, etc.)
 
-        tx.confirm(); // Por ahora confirmamos directamente
+
 
         return transactionRepository.save(tx);
     }
@@ -104,7 +104,7 @@ public class TransactionService {
         Transaction tx = Transaction.builder()
                 .owner(owner)
                 .type(TransactionType.INCOME)
-                .state(TransactionState.PENDING)
+                .state(TransactionState.CONFIRMED)
                 .amount(amount)
                 .sourceAccount(null)
                 .destinationAccount(destinationAccount)
@@ -118,7 +118,6 @@ public class TransactionService {
         validateTransactionAccounts(tx);
         validateTransactionOwnership(tx);
 
-        tx.confirm();
 
         return transactionRepository.save(tx);
     }
@@ -148,7 +147,7 @@ public class TransactionService {
         Transaction tx = Transaction.builder()
                 .owner(owner)
                 .type(TransactionType.TRANSFER)
-                .state(TransactionState.PENDING)
+                .state(TransactionState.CONFIRMED)
                 .amount(amount)
                 .sourceAccount(sourceAccount)
                 .destinationAccount(destinationAccount)
@@ -162,7 +161,6 @@ public class TransactionService {
         validateTransactionAccounts(tx);
         validateTransactionOwnership(tx);
 
-        tx.confirm();
 
         return transactionRepository.save(tx);
     }
@@ -176,12 +174,42 @@ public class TransactionService {
         return transactionRepository.findByOwner(owner);
     }
 
-    public List<Transaction> getTransactionsForUserInPeriod(Long ownerId,
-                                                            LocalDate from,
-                                                            LocalDate to) {
-        User owner = getUserOrThrow(ownerId);
+    public List<Transaction> getTransactionsForUserInPeriod(Long ownerId, LocalDate from, LocalDate to) {
+
+        if (from == null || to == null) {
+            throw new IllegalArgumentException("from and to are required");
+        }
+        if (from.isAfter(to)) {
+            throw new IllegalArgumentException("from must be <= to");
+        }
+
+        User owner = userRepository.findById(ownerId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + ownerId));
+
         return transactionRepository.findByOwnerAndOperationDateBetween(owner, from, to);
     }
+
+
+    public List<Transaction> listByOwner(Long ownerId) {
+        User owner = userRepository.findById(ownerId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + ownerId));
+        return transactionRepository.findByOwner(owner);
+    }
+
+    public List<Transaction> listByOwnerAndPeriod(Long ownerId, LocalDate from, LocalDate to) {
+        if (from == null || to == null) {
+            throw new IllegalArgumentException("from and to are required");
+        }
+        if (from.isAfter(to)) {
+            throw new IllegalArgumentException("from must be <= to");
+        }
+
+        User owner = userRepository.findById(ownerId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + ownerId));
+
+        return transactionRepository.findByOwnerAndOperationDateBetween(owner, from, to);
+    }
+
 
     // ---------------------------------------------------------
     //  HELPERS / VALIDACIONES PRIVADAS
@@ -218,8 +246,14 @@ public class TransactionService {
         }
 
         List<Tag> tags = tagRepository.findAllById(tagIds);
-        Set<Tag> result = new HashSet<>();
 
+        // 1) si faltó alguno, error
+        if (tags.size() != tagIds.size()) {
+            throw new IllegalArgumentException("Some tagIds do not exist");
+        }
+
+        // 2) ownership
+        Set<Tag> result = new HashSet<>();
         for (Tag tag : tags) {
             if (!tag.getOwner().getId().equals(owner.getId())) {
                 throw new IllegalArgumentException("Tag does not belong to user");
@@ -228,6 +262,7 @@ public class TransactionService {
         }
         return result;
     }
+
 
     private void validateAmountPositive(BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
@@ -248,20 +283,52 @@ public class TransactionService {
     }
 
     private void validateTransactionAccounts(Transaction tx) {
+
         if (tx.isExpense()) {
             if (tx.getSourceAccount() == null) {
                 throw new IllegalArgumentException("Expense must have a source account");
             }
-        } else if (tx.isIncome()) {
+            if (tx.getDestinationAccount() != null) {
+                throw new IllegalArgumentException("Expense must NOT have a destination account");
+            }
+            if (tx.getCategory() == null) {
+                throw new IllegalArgumentException("Expense must have a category");
+            }
+        }
+
+        else if (tx.isIncome()) {
             if (tx.getDestinationAccount() == null) {
                 throw new IllegalArgumentException("Income must have a destination account");
             }
-        } else if (tx.isTransfer()) {
+            if (tx.getSourceAccount() != null) {
+                throw new IllegalArgumentException("Income must NOT have a source account");
+            }
+            if (tx.getCategory() == null) {
+                throw new IllegalArgumentException("Income must have a category");
+            }
+        }
+
+        else if (tx.isTransfer()) {
             if (tx.getSourceAccount() == null || tx.getDestinationAccount() == null) {
                 throw new IllegalArgumentException("Transfer must have both source and destination accounts");
             }
+            if (tx.getSourceAccount().getId().equals(tx.getDestinationAccount().getId())) {
+                throw new IllegalArgumentException("Source and destination account must be different");
+            }
+            if (tx.getCategory() != null) {
+                throw new IllegalArgumentException("Transfer must NOT have a category");
+            }
+            // tags en transfer: si querés permitirlos, sacá esta regla
+            if (tx.getTags() != null && !tx.getTags().isEmpty()) {
+                throw new IllegalArgumentException("Transfer must NOT have tags");
+            }
+        }
+
+        else {
+            throw new IllegalArgumentException("Unknown transaction type");
         }
     }
+
 
     private void validateTransactionOwnership(Transaction tx) {
         Long ownerId = tx.getOwner().getId();
@@ -289,4 +356,6 @@ public class TransactionService {
             });
         }
     }
+
+
 }
