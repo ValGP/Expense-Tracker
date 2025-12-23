@@ -1,8 +1,10 @@
 package com.example.expensetracker.service;
 
 import com.example.expensetracker.dto.account.AccountCreateRequest;
+import com.example.expensetracker.dto.account.AccountUpdateRequest;
 import com.example.expensetracker.dto.account.AccountResponse;
 import com.example.expensetracker.dto.account.AccountBalanceResponse;
+import com.example.expensetracker.dto.account.AccountSummaryResponse;
 import com.example.expensetracker.model.Account;
 import com.example.expensetracker.model.Currency;
 import com.example.expensetracker.model.User;
@@ -163,4 +165,71 @@ public class AccountService {
                 balance
         );
     }
+
+    public List<AccountSummaryResponse> listByOwnerWithBalance(Long ownerId, Boolean activeOnly) {
+
+        User owner = userRepository.findById(ownerId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + ownerId));
+
+        return accountRepository.findByOwner(owner).stream()
+                .filter(a -> activeOnly == null || !activeOnly || Boolean.TRUE.equals(a.getActive()))
+                .map(a -> new AccountSummaryResponse(
+                        a.getId(),
+                        owner.getId(),
+                        a.getName(),
+                        a.getType(),
+                        a.getCurrency() != null ? a.getCurrency().getCode() : null,
+                        calculateCurrentBalance(a.getId()),
+                        a.getActive()
+                ))
+                .toList();
+    }
+
+
+    //@Transactional
+    public AccountResponse update(Long accountId, AccountUpdateRequest req) {
+
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+
+        // name
+        if (req.getName() != null) {
+            String newName = req.getName().trim();
+            if (newName.isBlank()) {
+                throw new IllegalArgumentException("name cannot be blank");
+            }
+            // evitar duplicados para el mismo owner
+            if (!newName.equalsIgnoreCase(account.getName())
+                    && accountRepository.existsByOwnerAndName(account.getOwner(), newName)) {
+                throw new IllegalArgumentException("Account with that name already exists for this user");
+            }
+            account.setName(newName);
+        }
+
+        // type
+        if (req.getType() != null) {
+            account.setType(req.getType());
+        }
+
+        // currency
+        if (req.getCurrencyCode() != null) {
+            String code = req.getCurrencyCode().trim();
+            if (code.isBlank()) {
+                throw new IllegalArgumentException("currencyCode cannot be blank");
+            }
+            Currency currency = currencyRepository.findById(code)
+                    .orElseThrow(() -> new IllegalArgumentException("Currency not found: " + code));
+            account.setCurrency(currency);
+        }
+
+        // active
+        if (req.getActive() != null) {
+            account.setActive(req.getActive());
+        }
+
+        Account saved = accountRepository.save(account);
+        return toResponse(saved);
+    }
 }
+
+

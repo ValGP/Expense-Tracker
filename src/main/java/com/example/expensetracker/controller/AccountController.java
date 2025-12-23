@@ -1,8 +1,10 @@
 package com.example.expensetracker.controller;
 
 import com.example.expensetracker.dto.account.AccountCreateRequest;
+import com.example.expensetracker.dto.account.AccountUpdateRequest;
 import com.example.expensetracker.dto.account.AccountResponse;
 import com.example.expensetracker.dto.account.AccountBalanceResponse;
+import com.example.expensetracker.dto.account.AccountSummaryResponse;
 import com.example.expensetracker.service.AccountService;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,12 +29,21 @@ public class AccountController {
 
     // GET /api/accounts?ownerId=1
     @GetMapping
-    public List<AccountResponse> listByOwner(@RequestParam Long ownerId) {
-        return accountService.listByOwner(ownerId);
+    public List<AccountSummaryResponse> listByOwner(
+            @RequestParam Long ownerId,
+            @RequestParam(required = false) Boolean activeOnly
+    ) {
+        return accountService.listByOwnerWithBalance(ownerId, activeOnly);
     }
+
 
     @GetMapping("/{id}/balance")
     public AccountBalanceResponse balance(@PathVariable Long id) {
         return accountService.getBalance(id);
+    }
+
+    @PatchMapping("/{id}")
+    public AccountResponse update(@PathVariable Long id, @RequestBody AccountUpdateRequest request) {
+        return accountService.update(id, request);
     }
 }

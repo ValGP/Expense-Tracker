@@ -5,6 +5,7 @@ import com.example.expensetracker.dto.IncomeRequest;
 import com.example.expensetracker.dto.TransferRequest;
 import com.example.expensetracker.model.Transaction;
 import com.example.expensetracker.service.TransactionService;
+import com.example.expensetracker.dto.transaction.TransactionResponse;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,7 +26,7 @@ public class TransactionController {
     // Crear GASTO
     // ------------------------
     @PostMapping("/expense")
-    public Transaction createExpense(@RequestBody ExpenseRequest request) {
+    public TransactionResponse createExpense(@RequestBody ExpenseRequest request) {
         return transactionService.createExpense(
                 request.getOwnerId(),
                 request.getSourceAccountId(),
@@ -41,7 +42,7 @@ public class TransactionController {
     // Crear INGRESO
     // ------------------------
     @PostMapping("/income")
-    public Transaction createIncome(@RequestBody IncomeRequest request) {
+    public TransactionResponse createIncome(@RequestBody IncomeRequest request) {
         return transactionService.createIncome(
                 request.getOwnerId(),
                 request.getDestinationAccountId(),
@@ -57,7 +58,7 @@ public class TransactionController {
     // Crear TRANSFERENCIA
     // ------------------------
     @PostMapping("/transfer")
-    public Transaction createTransfer(@RequestBody TransferRequest request) {
+    public TransactionResponse createTransfer(@RequestBody TransferRequest request) {
         return transactionService.createTransfer(
                 request.getOwnerId(),
                 request.getSourceAccountId(),
@@ -73,7 +74,7 @@ public class TransactionController {
     // GET /api/transactions?ownerId=1
     // ------------------------
     @GetMapping
-    public List<Transaction> getTransactionsForUser(@RequestParam Long ownerId) {
+    public List<TransactionResponse> getTransactionsForUser(@RequestParam Long ownerId) {
         return transactionService.getTransactionsForUser(ownerId);
     }
 
@@ -82,7 +83,7 @@ public class TransactionController {
     // GET /api/transactions/period?ownerId=1&from=2025-12-01&to=2025-12-31
     // ------------------------
     @GetMapping("/period")
-    public List<Transaction> getTransactionsForUserInPeriod(
+    public List<TransactionResponse> getTransactionsForUserInPeriod(
             @RequestParam Long ownerId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to

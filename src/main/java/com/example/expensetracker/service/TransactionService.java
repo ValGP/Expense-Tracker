@@ -7,6 +7,10 @@ import com.example.expensetracker.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.expensetracker.dto.transaction.TransactionResponse;
+import com.example.expensetracker.model.Tag;
+
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -24,6 +28,25 @@ public class TransactionService {
     private final TagRepository tagRepository;
     private final TransactionRepository transactionRepository;
 
+    private TransactionResponse toResponse(Transaction t) {
+        return new TransactionResponse(
+                t.getId(),
+                t.getOwner() != null ? t.getOwner().getId() : null,
+                t.getType(),
+                t.getState(),
+                t.getAmount(),
+                t.getOperationDate(),
+                t.getRecordedAt(),
+                t.getDescription(),
+                t.getSourceAccount() != null ? t.getSourceAccount().getId() : null,
+                t.getDestinationAccount() != null ? t.getDestinationAccount().getId() : null,
+                t.getCategory() != null ? t.getCategory().getId() : null,
+                t.getTags() != null
+                        ? t.getTags().stream().map(Tag::getId).toList()
+                        : List.of()
+        );
+    }
+
     public TransactionService(UserRepository userRepository,
                               AccountRepository accountRepository,
                               CategoryRepository categoryRepository,
@@ -39,7 +62,7 @@ public class TransactionService {
     // ---------------------------------------------------------
     //  GASTO (EXPENSE)
     // ---------------------------------------------------------
-    public Transaction createExpense(Long ownerId,
+    public TransactionResponse createExpense(Long ownerId,
                                      Long sourceAccountId,
                                      Long categoryId,
                                      BigDecimal amount,
@@ -78,13 +101,16 @@ public class TransactionService {
 
 
 
-        return transactionRepository.save(tx);
+        //return transactionRepository.save(tx);
+
+        Transaction saved = transactionRepository.save(tx);
+        return toResponse(saved);
     }
 
     // ---------------------------------------------------------
     //  INGRESO (INCOME)
     // ---------------------------------------------------------
-    public Transaction createIncome(Long ownerId,
+    public TransactionResponse createIncome(Long ownerId,
                                     Long destinationAccountId,
                                     Long categoryId,
                                     BigDecimal amount,
@@ -119,13 +145,14 @@ public class TransactionService {
         validateTransactionOwnership(tx);
 
 
-        return transactionRepository.save(tx);
+        Transaction saved = transactionRepository.save(tx);
+        return toResponse(saved);
     }
 
     // ---------------------------------------------------------
     //  TRANSFERENCIA (TRANSFER)
     // ---------------------------------------------------------
-    public Transaction createTransfer(Long ownerId,
+    public TransactionResponse createTransfer(Long ownerId,
                                       Long sourceAccountId,
                                       Long destinationAccountId,
                                       BigDecimal amount,
@@ -162,19 +189,23 @@ public class TransactionService {
         validateTransactionOwnership(tx);
 
 
-        return transactionRepository.save(tx);
+        Transaction saved = transactionRepository.save(tx);
+        return toResponse(saved);
     }
 
     // ---------------------------------------------------------
     //  LECTURA / CONSULTA
     // ---------------------------------------------------------
 
-    public List<Transaction> getTransactionsForUser(Long ownerId) {
+    public List<TransactionResponse> getTransactionsForUser(Long ownerId) {
         User owner = getUserOrThrow(ownerId);
-        return transactionRepository.findByOwner(owner);
+        return transactionRepository.findByOwner(owner)
+                                    .stream()
+                                    .map(this::toResponse)
+                                    .toList();
     }
 
-    public List<Transaction> getTransactionsForUserInPeriod(Long ownerId, LocalDate from, LocalDate to) {
+    public List<TransactionResponse> getTransactionsForUserInPeriod(Long ownerId, LocalDate from, LocalDate to) {
 
         if (from == null || to == null) {
             throw new IllegalArgumentException("from and to are required");
@@ -186,7 +217,10 @@ public class TransactionService {
         User owner = userRepository.findById(ownerId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + ownerId));
 
-        return transactionRepository.findByOwnerAndOperationDateBetween(owner, from, to);
+        return transactionRepository.findByOwnerAndOperationDateBetween(owner, from, to)
+                                    .stream()
+                                    .map(this::toResponse)
+                                    .toList();
     }
 
 
