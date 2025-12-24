@@ -1,6 +1,7 @@
 package com.example.expensetracker.service;
 
 import com.example.expensetracker.dto.tag.TagCreateRequest;
+import com.example.expensetracker.dto.tag.TagUpdateRequest;
 import com.example.expensetracker.dto.tag.TagResponse;
 import com.example.expensetracker.model.Tag;
 import com.example.expensetracker.model.User;
@@ -51,12 +52,12 @@ public class TagService {
         return toResponse(saved);
     }
 
-    public List<TagResponse> listByOwner(Long ownerId) {
+    public List<TagResponse> listByOwner(Long ownerId, Boolean activeOnly) {
         User owner = userRepository.findById(ownerId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + ownerId));
 
-        return tagRepository.findByOwner(owner)
-                .stream()
+        return tagRepository.findByOwner(owner).stream()
+                .filter(t -> activeOnly == null || !activeOnly || Boolean.TRUE.equals(t.getActive()))
                 .map(this::toResponse)
                 .toList();
     }
@@ -67,5 +68,32 @@ public class TagService {
                 t.getName(),
                 t.getActive()
         );
+    }
+
+    public TagResponse update(Long tagId, TagUpdateRequest req) {
+
+        Tag tag = tagRepository.findById(tagId)
+                .orElseThrow(() -> new IllegalArgumentException("Tag not found: " + tagId));
+
+        // name
+        if (req.getName() != null) {
+            String newName = req.getName().trim();
+            if (newName.isBlank()) {
+                throw new IllegalArgumentException("name cannot be blank");
+            }
+            if (!newName.equalsIgnoreCase(tag.getName())
+                    && tagRepository.existsByOwnerAndNameIgnoreCase(tag.getOwner(), newName)) {
+                throw new IllegalArgumentException("Tag with that name already exists for this user");
+            }
+            tag.setName(newName);
+        }
+
+        // active (opcional)
+        if (req.getActive() != null) {
+            tag.setActive(req.getActive());
+        }
+
+        Tag saved = tagRepository.save(tag);
+        return toResponse(saved);
     }
 }

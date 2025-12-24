@@ -3,9 +3,9 @@ package com.example.expensetracker.controller;
 import com.example.expensetracker.dto.ExpenseRequest;
 import com.example.expensetracker.dto.IncomeRequest;
 import com.example.expensetracker.dto.TransferRequest;
-import com.example.expensetracker.model.Transaction;
 import com.example.expensetracker.service.TransactionService;
 import com.example.expensetracker.dto.transaction.TransactionResponse;
+import com.example.expensetracker.dto.transaction.TransactionUpdateRequest;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
@@ -70,6 +70,20 @@ public class TransactionController {
     }
 
     // ------------------------
+    // Cancel or Confirm Transaction
+    // ------------------------
+    @PatchMapping("/{id}/cancel")
+    public TransactionResponse cancel(@PathVariable Long id) {
+        return transactionService.cancel(id);
+    }
+
+    @PatchMapping("/{id}/confirm")
+    public TransactionResponse confirm(@PathVariable Long id) {
+        return transactionService.confirm(id);
+    }
+
+
+    // ------------------------
     // Obtener TODAS las transacciones de un usuario
     // GET /api/transactions?ownerId=1
     // ------------------------
@@ -89,5 +103,15 @@ public class TransactionController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
     ) {
         return transactionService.getTransactionsForUserInPeriod(ownerId, from, to);
+    }
+
+    // ------------------------
+    // MODIFICAR TRANSACCION
+    // ------------------------
+
+    @PatchMapping("/{id}")
+    public TransactionResponse updatePartial(@PathVariable Long id,
+                                             @RequestBody TransactionUpdateRequest req) {
+        return transactionService.update(id, req);
     }
 }

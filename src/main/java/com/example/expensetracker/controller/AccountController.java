@@ -5,11 +5,15 @@ import com.example.expensetracker.dto.account.AccountUpdateRequest;
 import com.example.expensetracker.dto.account.AccountResponse;
 import com.example.expensetracker.dto.account.AccountBalanceResponse;
 import com.example.expensetracker.dto.account.AccountSummaryResponse;
-import com.example.expensetracker.service.AccountService;
-import org.springframework.web.bind.annotation.*;
+import com.example.expensetracker.dto.account.AccountDetailResponse;
 
-import java.math.BigDecimal;
+import com.example.expensetracker.service.AccountService;
+
+import org.springframework.web.bind.annotation.*;
+import org.springframework.format.annotation.DateTimeFormat;
+
 import java.util.List;
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/accounts")
@@ -36,14 +40,26 @@ public class AccountController {
         return accountService.listByOwnerWithBalance(ownerId, activeOnly);
     }
 
+    @GetMapping("/{id}")
+    public AccountDetailResponse detail(
+            @PathVariable Long id,
+            @RequestParam(required = false) Integer limit,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+    ) {
+        return accountService.getDetail(id, limit, from, to);
+    }
 
     @GetMapping("/{id}/balance")
     public AccountBalanceResponse balance(@PathVariable Long id) {
         return accountService.getBalance(id);
     }
 
+    // PATCH Update
     @PatchMapping("/{id}")
     public AccountResponse update(@PathVariable Long id, @RequestBody AccountUpdateRequest request) {
         return accountService.update(id, request);
     }
+
+
 }

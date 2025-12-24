@@ -7,6 +7,8 @@ import com.example.expensetracker.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.domain.Pageable;
+
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -57,5 +59,69 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             @Param("type") TransactionType type,
             @Param("state") TransactionState state,
             @Param("accountId") Long accountId
+    );
+
+    //Busca Transacciones en donde la cuenta aparezca como Source o Destination
+
+    List<Transaction> findByOwnerAndSourceAccount_IdOrOwnerAndDestinationAccount_Id(
+            User owner1, Long sourceAccountId,
+            User owner2, Long destinationAccountId,
+            Pageable pageable
+    );
+
+    List<Transaction> findByOwnerAndOperationDateBetweenAndSourceAccount_IdOrOwnerAndOperationDateBetweenAndDestinationAccount_Id(
+            User owner1, LocalDate from1, LocalDate to1, Long sourceAccountId,
+            User owner2, LocalDate from2, LocalDate to2, Long destinationAccountId,
+            Pageable pageable
+    );
+
+    /* =====================================================
+       Summary Calculation
+       ===================================================== */
+
+    //Sumar por tipo (Income/expense)
+    @Query("""
+    select coalesce(sum(t.amount), 0)
+    from Transaction t
+    where t.owner.id = :ownerId
+      and t.state = :state
+      and t.type = :type
+      and t.operationDate between :from and :to
+    """)
+    BigDecimal sumAmountByOwnerAndTypeAndStateInPeriod(
+            @Param("ownerId") Long ownerId,
+            @Param("type") TransactionType type,
+            @Param("state") TransactionState state,
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to
+    );
+
+    interface CategoryTotalRow {
+        Long getCategoryId();
+        String getCategoryName();
+        BigDecimal getTotal();
+    }
+    //Sumar Expenses por categoria
+    @Query("""
+    select
+      c.id as categoryId,
+      c.name as categoryName,
+      coalesce(sum(t.amount), 0) as total
+    from Transaction t
+    join t.category c
+    where t.owner.id = :ownerId
+      and t.state = :state
+      and t.type = :type
+      and t.operationDate between :from and :to
+    group by c.id, c.name
+    order by sum(t.amount) desc
+    """)
+    List<CategoryTotalRow> topCategoriesByOwnerInPeriod(
+            @Param("ownerId") Long ownerId,
+            @Param("type") TransactionType type,
+            @Param("state") TransactionState state,
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to,
+            Pageable pageable
     );
 }

@@ -5,6 +5,9 @@ import com.example.expensetracker.dto.account.AccountUpdateRequest;
 import com.example.expensetracker.dto.account.AccountResponse;
 import com.example.expensetracker.dto.account.AccountBalanceResponse;
 import com.example.expensetracker.dto.account.AccountSummaryResponse;
+import com.example.expensetracker.dto.account.AccountDetailResponse;
+import com.example.expensetracker.dto.transaction.TransactionResponse;
+
 import com.example.expensetracker.model.Account;
 import com.example.expensetracker.model.Currency;
 import com.example.expensetracker.model.User;
@@ -14,11 +17,13 @@ import com.example.expensetracker.repository.UserRepository;
 import com.example.expensetracker.repository.TransactionRepository;
 import com.example.expensetracker.enums.TransactionState;
 import com.example.expensetracker.enums.TransactionType;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -29,17 +34,18 @@ public class AccountService {
     private final CurrencyRepository currencyRepository;
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
-
+    private final TransactionService transactionService;
 
     public AccountService(UserRepository userRepository,
                           CurrencyRepository currencyRepository,
                           AccountRepository accountRepository,
-                          TransactionRepository transactionRepository) {
+                          TransactionRepository transactionRepository,
+                          TransactionService transactionService) {
         this.userRepository = userRepository;
         this.currencyRepository = currencyRepository;
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
-
+        this.transactionService = transactionService;
     }
 
     public AccountResponse create(AccountCreateRequest req) {
@@ -186,7 +192,7 @@ public class AccountService {
     }
 
 
-    //@Transactional
+    //UPDATE ACCOUNT
     public AccountResponse update(Long accountId, AccountUpdateRequest req) {
 
         Account account = accountRepository.findById(accountId)
@@ -229,6 +235,30 @@ public class AccountService {
 
         Account saved = accountRepository.save(account);
         return toResponse(saved);
+    }
+
+    //GET DETAIL
+    public AccountDetailResponse getDetail(Long accountId, Integer limit, LocalDate from, LocalDate to) {
+
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+
+        Long ownerId = account.getOwner().getId();
+
+        AccountSummaryResponse summary = new AccountSummaryResponse(
+                account.getId(),
+                ownerId,
+                account.getName(),
+                account.getType(),
+                account.getCurrency() != null ? account.getCurrency().getCode() : null,
+                calculateCurrentBalance(account.getId()),
+                account.getActive()
+        );
+
+        List<TransactionResponse> txs =
+                transactionService.listForAccount(ownerId, accountId, limit, from, to);
+
+        return new AccountDetailResponse(summary, txs);
     }
 }
 

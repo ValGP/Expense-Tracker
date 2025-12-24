@@ -6,8 +6,11 @@ import com.example.expensetracker.model.*;
 import com.example.expensetracker.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import com.example.expensetracker.dto.transaction.TransactionResponse;
+import com.example.expensetracker.dto.transaction.TransactionUpdateRequest;
 import com.example.expensetracker.model.Tag;
 
 
@@ -194,8 +197,101 @@ public class TransactionService {
     }
 
     // ---------------------------------------------------------
+    //  CANCEL / CONFIRM
+    // ---------------------------------------------------------
+
+    public TransactionResponse cancel(Long transactionId) {
+
+        Transaction tx = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new IllegalArgumentException("Transaction not found: " + transactionId));
+
+        // idempotente: si ya está cancelada, devolvés igual
+        if (tx.getState() != TransactionState.CANCELED) {
+            tx.setState(TransactionState.CANCELED);
+            transactionRepository.save(tx);
+        }
+
+        return toResponse(tx);
+    }
+
+    @Transactional
+    public TransactionResponse confirm(Long transactionId) {
+
+        Transaction tx = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new IllegalArgumentException("Transaction not found: " + transactionId));
+
+        // opcional: si estaba cancelada, ¿permitís re-confirmar?
+        // yo diría que NO, para no hacer lío:
+        if (tx.getState() == TransactionState.CANCELED) {
+            throw new IllegalArgumentException("Canceled transaction cannot be confirmed");
+        }
+
+        tx.setState(TransactionState.CONFIRMED);
+        transactionRepository.save(tx);
+
+        return toResponse(tx);
+    }
+
+    // ---------------------------------------------------------
+    //  UPDATE
+    // ---------------------------------------------------------
+
+    public TransactionResponse update(Long id, TransactionUpdateRequest req) {
+
+        Transaction tx = transactionRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Transaction not found: " + id));
+
+        if (tx.getState() == TransactionState.CANCELED) {
+            throw new IllegalStateException("Canceled transactions cannot be edited");
+        }
+
+        // description
+        if (req.getDescription() != null) {
+            String d = req.getDescription().trim();
+            if (d.isBlank()) throw new IllegalArgumentException("description cannot be blank");
+            tx.setDescription(d);
+        }
+
+        // operationDate
+        if (req.getOperationDate() != null) {
+            tx.setOperationDate(req.getOperationDate());
+        }
+
+        // categoryId
+        if (req.getCategoryId() != null) {
+            Category cat = categoryRepository.findById(req.getCategoryId())
+                    .orElseThrow(() -> new IllegalArgumentException("Category not found: " + req.getCategoryId()));
+            tx.setCategory(cat);
+        }
+
+        // tagIds: null no cambia, [] limpia
+        if (req.getTagIds() != null) {
+            tx.getTags().clear();
+
+            if (!req.getTagIds().isEmpty()) {
+                List<Tag> tags = tagRepository.findAllById(req.getTagIds());
+
+                // opcional pero recomendable para evitar ids inválidos silenciosos
+                if (tags.size() != req.getTagIds().size()) {
+                    throw new IllegalArgumentException("Some tags not found");
+                }
+
+                tx.getTags().addAll(new HashSet<>(tags));
+            }
+        }
+
+        // No es obligatorio llamar save() si tx está managed en la transacción,
+        // pero podés dejarlo explícito:
+        Transaction saved = transactionRepository.save(tx);
+
+        return toResponse(saved);
+    }
+
+    // ---------------------------------------------------------
     //  LECTURA / CONSULTA
     // ---------------------------------------------------------
+
+    //Transacciones del Usuario
 
     public List<TransactionResponse> getTransactionsForUser(Long ownerId) {
         User owner = getUserOrThrow(ownerId);
@@ -223,25 +319,52 @@ public class TransactionService {
                                     .toList();
     }
 
+    //Transacciones del Usuario en una cuenta especifica
 
-    public List<Transaction> listByOwner(Long ownerId) {
-        User owner = userRepository.findById(ownerId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + ownerId));
-        return transactionRepository.findByOwner(owner);
-    }
-
-    public List<Transaction> listByOwnerAndPeriod(Long ownerId, LocalDate from, LocalDate to) {
-        if (from == null || to == null) {
-            throw new IllegalArgumentException("from and to are required");
-        }
-        if (from.isAfter(to)) {
-            throw new IllegalArgumentException("from must be <= to");
-        }
+    public List<TransactionResponse> listForAccount(Long ownerId, Long accountId, Integer limit,
+                                                    LocalDate from, LocalDate to) {
 
         User owner = userRepository.findById(ownerId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + ownerId));
 
-        return transactionRepository.findByOwnerAndOperationDateBetween(owner, from, to);
+        int pageSize = (limit == null || limit <= 0) ? 20 : Math.min(limit, 200);
+
+        var pageable = PageRequest.of(
+                0,
+                pageSize,
+                Sort.by(Sort.Direction.DESC, "operationDate").and(Sort.by(Sort.Direction.DESC, "id"))
+        );
+
+        boolean hasPeriod = (from != null || to != null);
+
+        if (hasPeriod) {
+            if (from == null || to == null) {
+                throw new IllegalArgumentException("from and to must be both provided");
+            }
+            if (from.isAfter(to)) {
+                throw new IllegalArgumentException("from must be <= to");
+            }
+
+            return transactionRepository
+                    .findByOwnerAndOperationDateBetweenAndSourceAccount_IdOrOwnerAndOperationDateBetweenAndDestinationAccount_Id(
+                            owner, from, to, accountId,
+                            owner, from, to, accountId,
+                            pageable
+                    )
+                    .stream()
+                    .map(this::toResponse)
+                    .toList();
+        }
+
+        return transactionRepository
+                .findByOwnerAndSourceAccount_IdOrOwnerAndDestinationAccount_Id(
+                        owner, accountId,
+                        owner, accountId,
+                        pageable
+                )
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
 

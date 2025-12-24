@@ -1,6 +1,7 @@
 package com.example.expensetracker.controller;
 
 import com.example.expensetracker.dto.category.CategoryCreateRequest;
+import com.example.expensetracker.dto.category.CategoryUpdateRequest;
 import com.example.expensetracker.dto.category.CategoryResponse;
 import com.example.expensetracker.service.CategoryService;
 import org.springframework.web.bind.annotation.*;
@@ -25,7 +26,16 @@ public class CategoryController {
 
     // GET /api/categories?ownerId=1
     @GetMapping
-    public List<CategoryResponse> listByOwner(@RequestParam Long ownerId) {
-        return categoryService.listByOwner(ownerId);
+    public List<CategoryResponse> listByOwner(
+            @RequestParam Long ownerId,
+            @RequestParam(required = false) Boolean activeOnly
+    ) {
+        return categoryService.listByOwner(ownerId, activeOnly);
+    }
+
+    // PATCH /api/categories/{id}
+    @PatchMapping("/{id}")
+    public CategoryResponse update(@PathVariable Long id, @RequestBody CategoryUpdateRequest request) {
+        return categoryService.update(id, request);
     }
 }
