@@ -69,11 +69,29 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
+    // 401
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<ApiError> handleInvalidCredentials(InvalidCredentialsException ex, HttpServletRequest req) {
+        return ResponseEntity.status(401).body(
+                ApiError.of(401, "Unauthorized", ex.getMessage(), req.getRequestURI(), null)
+        );
+    }
+
+
     //403
     @ExceptionHandler(ForbiddenException.class)
     public ResponseEntity<ApiError> handleForbidden(ForbiddenException ex, HttpServletRequest req) {
         return ResponseEntity.status(403).body(ApiError.of(403, "Forbidden", ex.getMessage(), req.getRequestURI(), null));
     }
+
+    // 403 - user inactive
+    @ExceptionHandler(UserInactiveException.class)
+    public ResponseEntity<ApiError> handleUserInactive(UserInactiveException ex, HttpServletRequest req) {
+        return ResponseEntity.status(403).body(
+                ApiError.of(403, "Forbidden", ex.getMessage(), req.getRequestURI(), null)
+        );
+    }
+
 
     // 404 - si alguna vez usás NoSuchElementException (o lo usás vos)
     @ExceptionHandler(NoSuchElementException.class)

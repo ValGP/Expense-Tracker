@@ -3,14 +3,18 @@ package com.example.expensetracker;
 import com.example.expensetracker.enums.AccountType;
 import com.example.expensetracker.model.*;
 import com.example.expensetracker.repository.*;
+import com.example.expensetracker.config.JwtProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+@EnableConfigurationProperties(JwtProperties.class)
 @SpringBootApplication
 public class ExpenseTrackerApplication {
 
@@ -24,7 +28,8 @@ public class ExpenseTrackerApplication {
             CurrencyRepository currencyRepository,
             AccountRepository accountRepository,
             CategoryRepository categoryRepository,
-            TagRepository tagRepository
+            TagRepository tagRepository,
+            PasswordEncoder passwordEncoder
     ) {
         return args -> {
 
@@ -47,7 +52,7 @@ public class ExpenseTrackerApplication {
                         User u = User.builder()
                                 .name("Demo User")
                                 .email("demo@example.com")
-                                .passwordHash("hashed-password")
+                                .passwordHash(passwordEncoder.encode("demo12345"))
                                 .defaultCurrency(ars)
                                 .createdAt(LocalDateTime.now())
                                 .active(true)

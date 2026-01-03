@@ -1,15 +1,18 @@
 package com.example.expensetracker.model;
 
+import com.example.expensetracker.enums.Role;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
-import java.time.LocalDateTime;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Entity
-@Table(name = "users") // nombre de tabla en la BD
-@Data                 // getters, setters, toString, equals, hashCode (Lombok)
+@Table(name = "users")
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -28,7 +31,7 @@ public class User {
     @Column(nullable = false)
     private String passwordHash;
 
-    // Relación con Currency (clase que vamos a crear después)
+    // Relación con Currency
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "default_currency_code")
     private Currency defaultCurrency;
@@ -37,7 +40,17 @@ public class User {
 
     private Boolean active;
 
-    // ---- Lógica simple de dominio ---- //
+    // ---- ROLES ----
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+            name = "user_roles",
+            joinColumns = @JoinColumn(name = "user_id")
+    )
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false)
+    private Set<Role> roles = new HashSet<>();
+
+    // ---- Lógica simple de dominio ----
 
     @PrePersist
     public void prePersist() {
@@ -46,6 +59,10 @@ public class User {
         }
         if (active == null) {
             active = true;
+        }
+        if (roles == null || roles.isEmpty()) {
+            roles = new HashSet<>();
+            roles.add(Role.USER);
         }
     }
 
@@ -70,4 +87,3 @@ public class User {
         this.defaultCurrency = newCurrency;
     }
 }
-
