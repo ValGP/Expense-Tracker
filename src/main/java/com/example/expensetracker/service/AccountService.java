@@ -256,7 +256,8 @@ public class AccountService {
         );
 
         List<TransactionResponse> txs =
-                transactionService.listForAccount(ownerId, accountId, limit, from, to);
+                transactionService.listForAccount(accountId, limit, from, to);
+
 
         return new AccountDetailResponse(summary, txs);
     }

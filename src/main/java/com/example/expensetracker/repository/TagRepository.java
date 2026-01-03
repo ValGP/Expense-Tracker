@@ -1,4 +1,3 @@
-// TagRepository.java
 package com.example.expensetracker.repository;
 
 import com.example.expensetracker.model.Tag;
@@ -13,4 +12,6 @@ public interface TagRepository extends JpaRepository<Tag, Long> {
 
     boolean existsByOwnerAndNameIgnoreCase(User owner, String name);
 
+    // 🔒 traer tags SOLO del usuario
+    List<Tag> findAllByIdInAndOwnerId(List<Long> ids, Long ownerId);
 }

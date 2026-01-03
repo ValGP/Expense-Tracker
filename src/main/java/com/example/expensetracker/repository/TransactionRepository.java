@@ -4,33 +4,47 @@ import com.example.expensetracker.enums.TransactionState;
 import com.example.expensetracker.enums.TransactionType;
 import com.example.expensetracker.model.Transaction;
 import com.example.expensetracker.model.User;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.data.domain.Pageable;
-
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
 
     /* =====================================================
-       CONSULTAS DE LISTADO / HISTORIAL
+       OWNERSHIP / LISTADO
        ===================================================== */
 
-    List<Transaction> findByOwner(User owner);
+    // Listado de transacciones del usuario
+    List<Transaction> findAllByOwner(User owner);
 
-    List<Transaction> findByOwnerAndOperationDateBetween(
-            User owner,
-            LocalDate from,
-            LocalDate to
+    // Por período (del usuario)
+    List<Transaction> findAllByOwnerAndOperationDateBetween(User owner, LocalDate from, LocalDate to);
+
+    // Para update/cancel/confirm: transacción solo si es del usuario
+    Optional<Transaction> findByIdAndOwnerId(Long id, Long ownerId);
+
+    // Cuenta como Source o Destination (del usuario)
+    List<Transaction> findByOwnerAndSourceAccount_IdOrOwnerAndDestinationAccount_Id(
+            User owner1, Long sourceAccountId,
+            User owner2, Long destinationAccountId,
+            Pageable pageable
+    );
+
+    // Cuenta como Source o Destination dentro de un período (del usuario)
+    List<Transaction> findByOwnerAndOperationDateBetweenAndSourceAccount_IdOrOwnerAndOperationDateBetweenAndDestinationAccount_Id(
+            User owner1, LocalDate from1, LocalDate to1, Long sourceAccountId,
+            User owner2, LocalDate from2, LocalDate to2, Long destinationAccountId,
+            Pageable pageable
     );
 
     /* =====================================================
-       CONSULTAS DE AGREGACIÓN (CÁLCULO DE SALDO)
-       SOLO TRANSACCIONES CONFIRMED
+       AGREGACIÓN (SALDOS) - SOLO CONFIRMED (sin ownership extra porque ya filtras por accountId)
        ===================================================== */
 
     // EXPENSE o TRANSFER que salen de una cuenta
@@ -61,25 +75,10 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             @Param("accountId") Long accountId
     );
 
-    //Busca Transacciones en donde la cuenta aparezca como Source o Destination
-
-    List<Transaction> findByOwnerAndSourceAccount_IdOrOwnerAndDestinationAccount_Id(
-            User owner1, Long sourceAccountId,
-            User owner2, Long destinationAccountId,
-            Pageable pageable
-    );
-
-    List<Transaction> findByOwnerAndOperationDateBetweenAndSourceAccount_IdOrOwnerAndOperationDateBetweenAndDestinationAccount_Id(
-            User owner1, LocalDate from1, LocalDate to1, Long sourceAccountId,
-            User owner2, LocalDate from2, LocalDate to2, Long destinationAccountId,
-            Pageable pageable
-    );
-
     /* =====================================================
-       Summary Calculation
+       SUMMARY (por ownerId)
        ===================================================== */
 
-    //Sumar por tipo (Income/expense)
     @Query("""
     select coalesce(sum(t.amount), 0)
     from Transaction t
@@ -101,7 +100,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
         String getCategoryName();
         BigDecimal getTotal();
     }
-    //Sumar Expenses por categoria
+
     @Query("""
     select
       c.id as categoryId,

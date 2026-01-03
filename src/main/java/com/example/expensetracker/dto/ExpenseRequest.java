@@ -12,13 +12,11 @@ import java.util.List;
 @NoArgsConstructor
 public class ExpenseRequest {
 
-    private Long ownerId;
     private Long sourceAccountId;
     private Long categoryId;
     private BigDecimal amount;
     private String description;
 
-    // 👇 para que Jackson sepa cómo parsear la fecha
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate operationDate;
 

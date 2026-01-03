@@ -12,7 +12,6 @@ import java.util.List;
 @NoArgsConstructor
 public class IncomeRequest {
 
-    private Long ownerId;
     private Long destinationAccountId;
     private Long categoryId;
     private BigDecimal amount;

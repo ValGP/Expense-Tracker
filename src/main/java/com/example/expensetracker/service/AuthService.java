@@ -15,10 +15,13 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final UserOnboardingService onboardingService;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, UserOnboardingService onboardingService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.onboardingService = onboardingService;
     }
 
     public User register(RegisterRequest req) {
@@ -35,6 +38,12 @@ public class AuthService {
                 .active(true)
                 .build();
 
+        user = userRepository.save(user);
+
+        // 👇 crea cuentas/categorías/moneda default
+        onboardingService.seedDefaultsFor(user);
+
+        // si onboarding setea defaultCurrency, volvemos a guardar (por las dudas)
         return userRepository.save(user);
     }
 

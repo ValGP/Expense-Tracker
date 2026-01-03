@@ -11,7 +11,6 @@ import java.time.LocalDate;
 @NoArgsConstructor
 public class TransferRequest {
 
-    private Long ownerId;
     private Long sourceAccountId;
     private Long destinationAccountId;
     private BigDecimal amount;

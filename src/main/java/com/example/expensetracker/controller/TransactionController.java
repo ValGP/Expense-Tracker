@@ -3,9 +3,9 @@ package com.example.expensetracker.controller;
 import com.example.expensetracker.dto.ExpenseRequest;
 import com.example.expensetracker.dto.IncomeRequest;
 import com.example.expensetracker.dto.TransferRequest;
-import com.example.expensetracker.service.TransactionService;
 import com.example.expensetracker.dto.transaction.TransactionResponse;
 import com.example.expensetracker.dto.transaction.TransactionUpdateRequest;
+import com.example.expensetracker.service.TransactionService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,12 +23,11 @@ public class TransactionController {
     }
 
     // ------------------------
-    // Crear GASTO
+    // Crear GASTO (del usuario autenticado)
     // ------------------------
     @PostMapping("/expense")
     public TransactionResponse createExpense(@RequestBody ExpenseRequest request) {
         return transactionService.createExpense(
-                request.getOwnerId(),
                 request.getSourceAccountId(),
                 request.getCategoryId(),
                 request.getAmount(),
@@ -39,12 +38,11 @@ public class TransactionController {
     }
 
     // ------------------------
-    // Crear INGRESO
+    // Crear INGRESO (del usuario autenticado)
     // ------------------------
     @PostMapping("/income")
     public TransactionResponse createIncome(@RequestBody IncomeRequest request) {
         return transactionService.createIncome(
-                request.getOwnerId(),
                 request.getDestinationAccountId(),
                 request.getCategoryId(),
                 request.getAmount(),
@@ -55,12 +53,11 @@ public class TransactionController {
     }
 
     // ------------------------
-    // Crear TRANSFERENCIA
+    // Crear TRANSFERENCIA (del usuario autenticado)
     // ------------------------
     @PostMapping("/transfer")
     public TransactionResponse createTransfer(@RequestBody TransferRequest request) {
         return transactionService.createTransfer(
-                request.getOwnerId(),
                 request.getSourceAccountId(),
                 request.getDestinationAccountId(),
                 request.getAmount(),
@@ -71,6 +68,7 @@ public class TransactionController {
 
     // ------------------------
     // Cancel or Confirm Transaction
+    // (en la Parte C vamos a asegurar ownership en service/repo)
     // ------------------------
     @PatchMapping("/{id}/cancel")
     public TransactionResponse cancel(@PathVariable Long id) {
@@ -82,33 +80,30 @@ public class TransactionController {
         return transactionService.confirm(id);
     }
 
-
     // ------------------------
-    // Obtener TODAS las transacciones de un usuario
-    // GET /api/transactions?ownerId=1
+    // Obtener MIS transacciones
+    // GET /api/transactions
     // ------------------------
     @GetMapping
-    public List<TransactionResponse> getTransactionsForUser(@RequestParam Long ownerId) {
-        return transactionService.getTransactionsForUser(ownerId);
+    public List<TransactionResponse> getMyTransactions() {
+        return transactionService.getMyTransactions();
     }
 
     // ------------------------
-    // Obtener transacciones por período
-    // GET /api/transactions/period?ownerId=1&from=2025-12-01&to=2025-12-31
+    // Obtener MIS transacciones por período
+    // GET /api/transactions/period?from=2025-12-01&to=2025-12-31
     // ------------------------
     @GetMapping("/period")
-    public List<TransactionResponse> getTransactionsForUserInPeriod(
-            @RequestParam Long ownerId,
+    public List<TransactionResponse> getMyTransactionsInPeriod(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
     ) {
-        return transactionService.getTransactionsForUserInPeriod(ownerId, from, to);
+        return transactionService.getMyTransactionsInPeriod(from, to);
     }
 
     // ------------------------
-    // MODIFICAR TRANSACCION
+    // MODIFICAR TRANSACCION (del usuario autenticado)
     // ------------------------
-
     @PatchMapping("/{id}")
     public TransactionResponse updatePartial(@PathVariable Long id,
                                              @RequestBody TransactionUpdateRequest req) {

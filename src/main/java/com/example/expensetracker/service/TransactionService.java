@@ -1,18 +1,16 @@
 package com.example.expensetracker.service;
 
+import com.example.expensetracker.dto.transaction.TransactionResponse;
+import com.example.expensetracker.dto.transaction.TransactionUpdateRequest;
 import com.example.expensetracker.enums.TransactionState;
 import com.example.expensetracker.enums.TransactionType;
 import com.example.expensetracker.model.*;
 import com.example.expensetracker.repository.*;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import com.example.expensetracker.security.CurrentUserService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-
-import com.example.expensetracker.dto.transaction.TransactionResponse;
-import com.example.expensetracker.dto.transaction.TransactionUpdateRequest;
-import com.example.expensetracker.model.Tag;
-
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -25,11 +23,23 @@ import java.util.Set;
 @Transactional
 public class TransactionService {
 
-    private final UserRepository userRepository;
+    private final CurrentUserService currentUserService;
     private final AccountRepository accountRepository;
     private final CategoryRepository categoryRepository;
     private final TagRepository tagRepository;
     private final TransactionRepository transactionRepository;
+
+    public TransactionService(CurrentUserService currentUserService,
+                              AccountRepository accountRepository,
+                              CategoryRepository categoryRepository,
+                              TagRepository tagRepository,
+                              TransactionRepository transactionRepository) {
+        this.currentUserService = currentUserService;
+        this.accountRepository = accountRepository;
+        this.categoryRepository = categoryRepository;
+        this.tagRepository = tagRepository;
+        this.transactionRepository = transactionRepository;
+    }
 
     private TransactionResponse toResponse(Transaction t) {
         return new TransactionResponse(
@@ -44,36 +54,22 @@ public class TransactionService {
                 t.getSourceAccount() != null ? t.getSourceAccount().getId() : null,
                 t.getDestinationAccount() != null ? t.getDestinationAccount().getId() : null,
                 t.getCategory() != null ? t.getCategory().getId() : null,
-                t.getTags() != null
-                        ? t.getTags().stream().map(Tag::getId).toList()
-                        : List.of()
+                t.getTags() != null ? t.getTags().stream().map(Tag::getId).toList() : List.of()
         );
     }
 
-    public TransactionService(UserRepository userRepository,
-                              AccountRepository accountRepository,
-                              CategoryRepository categoryRepository,
-                              TagRepository tagRepository,
-                              TransactionRepository transactionRepository) {
-        this.userRepository = userRepository;
-        this.accountRepository = accountRepository;
-        this.categoryRepository = categoryRepository;
-        this.tagRepository = tagRepository;
-        this.transactionRepository = transactionRepository;
-    }
-
     // ---------------------------------------------------------
-    //  GASTO (EXPENSE)
+    //  GASTO (EXPENSE) - owner sale del token
     // ---------------------------------------------------------
-    public TransactionResponse createExpense(Long ownerId,
-                                     Long sourceAccountId,
-                                     Long categoryId,
-                                     BigDecimal amount,
-                                     LocalDate operationDate,
-                                     String description,
-                                     List<Long> tagIds) {
+    public TransactionResponse createExpense(Long sourceAccountId,
+                                             Long categoryId,
+                                             BigDecimal amount,
+                                             LocalDate operationDate,
+                                             String description,
+                                             List<Long> tagIds) {
 
-        User owner = getUserOrThrow(ownerId);
+        User owner = currentUserService.get();
+
         Account sourceAccount = getAccountForUserOrThrow(owner, sourceAccountId);
         Category category = getCategoryForUserOrThrow(owner, categoryId);
         Set<Tag> tags = getTagsForUser(owner, tagIds);
@@ -96,15 +92,8 @@ public class TransactionService {
                 .recordedAt(LocalDateTime.now())
                 .build();
 
-        // Validaciones de consistencia de la propia transacción
         validateTransactionAccounts(tx);
-        validateTransactionOwnership(tx);
-
-        // En este punto podríamos aplicar reglas extra (límites, saldo, etc.)
-
-
-
-        //return transactionRepository.save(tx);
+        // validateTransactionOwnership(tx); // opcional: ya está blindado por repos
 
         Transaction saved = transactionRepository.save(tx);
         return toResponse(saved);
@@ -113,15 +102,15 @@ public class TransactionService {
     // ---------------------------------------------------------
     //  INGRESO (INCOME)
     // ---------------------------------------------------------
-    public TransactionResponse createIncome(Long ownerId,
-                                    Long destinationAccountId,
-                                    Long categoryId,
-                                    BigDecimal amount,
-                                    LocalDate operationDate,
-                                    String description,
-                                    List<Long> tagIds) {
+    public TransactionResponse createIncome(Long destinationAccountId,
+                                            Long categoryId,
+                                            BigDecimal amount,
+                                            LocalDate operationDate,
+                                            String description,
+                                            List<Long> tagIds) {
 
-        User owner = getUserOrThrow(ownerId);
+        User owner = currentUserService.get();
+
         Account destinationAccount = getAccountForUserOrThrow(owner, destinationAccountId);
         Category category = getCategoryForUserOrThrow(owner, categoryId);
         Set<Tag> tags = getTagsForUser(owner, tagIds);
@@ -145,8 +134,7 @@ public class TransactionService {
                 .build();
 
         validateTransactionAccounts(tx);
-        validateTransactionOwnership(tx);
-
+        // validateTransactionOwnership(tx); // opcional: ya está blindado por repos
 
         Transaction saved = transactionRepository.save(tx);
         return toResponse(saved);
@@ -155,14 +143,14 @@ public class TransactionService {
     // ---------------------------------------------------------
     //  TRANSFERENCIA (TRANSFER)
     // ---------------------------------------------------------
-    public TransactionResponse createTransfer(Long ownerId,
-                                      Long sourceAccountId,
-                                      Long destinationAccountId,
-                                      BigDecimal amount,
-                                      LocalDate operationDate,
-                                      String description) {
+    public TransactionResponse createTransfer(Long sourceAccountId,
+                                              Long destinationAccountId,
+                                              BigDecimal amount,
+                                              LocalDate operationDate,
+                                              String description) {
 
-        User owner = getUserOrThrow(ownerId);
+        User owner = currentUserService.get();
+
         Account sourceAccount = getAccountForUserOrThrow(owner, sourceAccountId);
         Account destinationAccount = getAccountForUserOrThrow(owner, destinationAccountId);
 
@@ -189,23 +177,21 @@ public class TransactionService {
                 .build();
 
         validateTransactionAccounts(tx);
-        validateTransactionOwnership(tx);
-
+        // validateTransactionOwnership(tx); // opcional: ya está blindado por repos
 
         Transaction saved = transactionRepository.save(tx);
         return toResponse(saved);
     }
 
     // ---------------------------------------------------------
-    //  CANCEL / CONFIRM
+    //  CANCEL / CONFIRM (con ownership)
     // ---------------------------------------------------------
-
     public TransactionResponse cancel(Long transactionId) {
+        Long ownerId = currentUserService.getId();
 
-        Transaction tx = transactionRepository.findById(transactionId)
+        Transaction tx = transactionRepository.findByIdAndOwnerId(transactionId, ownerId)
                 .orElseThrow(() -> new IllegalArgumentException("Transaction not found: " + transactionId));
 
-        // idempotente: si ya está cancelada, devolvés igual
         if (tx.getState() != TransactionState.CANCELED) {
             tx.setState(TransactionState.CANCELED);
             transactionRepository.save(tx);
@@ -214,14 +200,12 @@ public class TransactionService {
         return toResponse(tx);
     }
 
-    @Transactional
     public TransactionResponse confirm(Long transactionId) {
+        Long ownerId = currentUserService.getId();
 
-        Transaction tx = transactionRepository.findById(transactionId)
+        Transaction tx = transactionRepository.findByIdAndOwnerId(transactionId, ownerId)
                 .orElseThrow(() -> new IllegalArgumentException("Transaction not found: " + transactionId));
 
-        // opcional: si estaba cancelada, ¿permitís re-confirmar?
-        // yo diría que NO, para no hacer lío:
         if (tx.getState() == TransactionState.CANCELED) {
             throw new IllegalArgumentException("Canceled transaction cannot be confirmed");
         }
@@ -233,76 +217,59 @@ public class TransactionService {
     }
 
     // ---------------------------------------------------------
-    //  UPDATE
+    //  UPDATE (con ownership + category/tags del usuario)
     // ---------------------------------------------------------
-
     public TransactionResponse update(Long id, TransactionUpdateRequest req) {
+        User owner = currentUserService.get();
 
-        Transaction tx = transactionRepository.findById(id)
+        Transaction tx = transactionRepository.findByIdAndOwnerId(id, owner.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Transaction not found: " + id));
 
         if (tx.getState() == TransactionState.CANCELED) {
             throw new IllegalStateException("Canceled transactions cannot be edited");
         }
 
-        // description
         if (req.getDescription() != null) {
             String d = req.getDescription().trim();
             if (d.isBlank()) throw new IllegalArgumentException("description cannot be blank");
             tx.setDescription(d);
         }
 
-        // operationDate
         if (req.getOperationDate() != null) {
             tx.setOperationDate(req.getOperationDate());
         }
 
-        // categoryId
         if (req.getCategoryId() != null) {
-            Category cat = categoryRepository.findById(req.getCategoryId())
-                    .orElseThrow(() -> new IllegalArgumentException("Category not found: " + req.getCategoryId()));
+            Category cat = getCategoryForUserOrThrow(owner, req.getCategoryId());
             tx.setCategory(cat);
         }
 
-        // tagIds: null no cambia, [] limpia
+        // tagIds: null => no tocar, [] => limpiar
         if (req.getTagIds() != null) {
             tx.getTags().clear();
 
             if (!req.getTagIds().isEmpty()) {
-                List<Tag> tags = tagRepository.findAllById(req.getTagIds());
-
-                // opcional pero recomendable para evitar ids inválidos silenciosos
-                if (tags.size() != req.getTagIds().size()) {
-                    throw new IllegalArgumentException("Some tags not found");
-                }
-
-                tx.getTags().addAll(new HashSet<>(tags));
+                Set<Tag> tags = getTagsForUser(owner, req.getTagIds());
+                tx.getTags().addAll(tags);
             }
         }
 
-        // No es obligatorio llamar save() si tx está managed en la transacción,
-        // pero podés dejarlo explícito:
         Transaction saved = transactionRepository.save(tx);
-
         return toResponse(saved);
     }
 
     // ---------------------------------------------------------
-    //  LECTURA / CONSULTA
+    //  LECTURA / CONSULTA (mis transacciones)
     // ---------------------------------------------------------
-
-    //Transacciones del Usuario
-
-    public List<TransactionResponse> getTransactionsForUser(Long ownerId) {
-        User owner = getUserOrThrow(ownerId);
-        return transactionRepository.findByOwner(owner)
-                                    .stream()
-                                    .map(this::toResponse)
-                                    .toList();
+    public List<TransactionResponse> getMyTransactions() {
+        User owner = currentUserService.get();
+        return transactionRepository.findAllByOwner(owner)
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
-    public List<TransactionResponse> getTransactionsForUserInPeriod(Long ownerId, LocalDate from, LocalDate to) {
-
+    public List<TransactionResponse> getMyTransactionsInPeriod(LocalDate from, LocalDate to) {
         if (from == null || to == null) {
             throw new IllegalArgumentException("from and to are required");
         }
@@ -310,22 +277,19 @@ public class TransactionService {
             throw new IllegalArgumentException("from must be <= to");
         }
 
-        User owner = userRepository.findById(ownerId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + ownerId));
+        User owner = currentUserService.get();
 
-        return transactionRepository.findByOwnerAndOperationDateBetween(owner, from, to)
-                                    .stream()
-                                    .map(this::toResponse)
-                                    .toList();
+        return transactionRepository.findAllByOwnerAndOperationDateBetween(owner, from, to)
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
-    //Transacciones del Usuario en una cuenta especifica
-
-    public List<TransactionResponse> listForAccount(Long ownerId, Long accountId, Integer limit,
+    // (usado por AccountService) listado por cuenta del usuario
+    public List<TransactionResponse> listForAccount(Long accountId, Integer limit,
                                                     LocalDate from, LocalDate to) {
 
-        User owner = userRepository.findById(ownerId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + ownerId));
+        User owner = currentUserService.get();
 
         int pageSize = (limit == null || limit <= 0) ? 20 : Math.min(limit, 200);
 
@@ -367,34 +331,28 @@ public class TransactionService {
                 .toList();
     }
 
-
     // ---------------------------------------------------------
-    //  HELPERS / VALIDACIONES PRIVADAS
+    //  HELPERS / VALIDACIONES PRIVADAS (blindados por ownerId)
     // ---------------------------------------------------------
-
-    private User getUserOrThrow(Long ownerId) {
-        return userRepository.findById(ownerId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + ownerId));
-    }
 
     private Account getAccountForUserOrThrow(User owner, Long accountId) {
-        Account account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
-
-        if (!account.getOwner().getId().equals(owner.getId())) {
-            throw new IllegalArgumentException("Account does not belong to user");
+        if (accountId == null) {
+            throw new IllegalArgumentException("accountId is required");
         }
-        return account;
+
+        // 🔒 Solo devuelve la cuenta si pertenece al usuario autenticado
+        return accountRepository.findByIdAndOwnerId(accountId, owner.getId())
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
     }
 
     private Category getCategoryForUserOrThrow(User owner, Long categoryId) {
-        Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new IllegalArgumentException("Category not found: " + categoryId));
-
-        if (!category.getOwner().getId().equals(owner.getId())) {
-            throw new IllegalArgumentException("Category does not belong to user");
+        if (categoryId == null) {
+            throw new IllegalArgumentException("categoryId is required");
         }
-        return category;
+
+        // 🔒 Solo devuelve la categoría si pertenece al usuario autenticado
+        return categoryRepository.findByIdAndOwnerId(categoryId, owner.getId())
+                .orElseThrow(() -> new IllegalArgumentException("Category not found: " + categoryId));
     }
 
     private Set<Tag> getTagsForUser(User owner, List<Long> tagIds) {
@@ -402,24 +360,16 @@ public class TransactionService {
             return new HashSet<>();
         }
 
-        List<Tag> tags = tagRepository.findAllById(tagIds);
+        // 🔒 Trae únicamente tags del usuario
+        List<Tag> tags = tagRepository.findAllByIdInAndOwnerId(tagIds, owner.getId());
 
-        // 1) si faltó alguno, error
+        // Si te pasaron IDs que no existen o no son del usuario → rechazamos
         if (tags.size() != tagIds.size()) {
-            throw new IllegalArgumentException("Some tagIds do not exist");
+            throw new IllegalArgumentException("Some tagIds do not exist (or do not belong to user)");
         }
 
-        // 2) ownership
-        Set<Tag> result = new HashSet<>();
-        for (Tag tag : tags) {
-            if (!tag.getOwner().getId().equals(owner.getId())) {
-                throw new IllegalArgumentException("Tag does not belong to user");
-            }
-            result.add(tag);
-        }
-        return result;
+        return new HashSet<>(tags);
     }
-
 
     private void validateAmountPositive(BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
@@ -440,7 +390,6 @@ public class TransactionService {
     }
 
     private void validateTransactionAccounts(Transaction tx) {
-
         if (tx.isExpense()) {
             if (tx.getSourceAccount() == null) {
                 throw new IllegalArgumentException("Expense must have a source account");
@@ -451,9 +400,7 @@ public class TransactionService {
             if (tx.getCategory() == null) {
                 throw new IllegalArgumentException("Expense must have a category");
             }
-        }
-
-        else if (tx.isIncome()) {
+        } else if (tx.isIncome()) {
             if (tx.getDestinationAccount() == null) {
                 throw new IllegalArgumentException("Income must have a destination account");
             }
@@ -463,9 +410,7 @@ public class TransactionService {
             if (tx.getCategory() == null) {
                 throw new IllegalArgumentException("Income must have a category");
             }
-        }
-
-        else if (tx.isTransfer()) {
+        } else if (tx.isTransfer()) {
             if (tx.getSourceAccount() == null || tx.getDestinationAccount() == null) {
                 throw new IllegalArgumentException("Transfer must have both source and destination accounts");
             }
@@ -475,44 +420,11 @@ public class TransactionService {
             if (tx.getCategory() != null) {
                 throw new IllegalArgumentException("Transfer must NOT have a category");
             }
-            // tags en transfer: si querés permitirlos, sacá esta regla
             if (tx.getTags() != null && !tx.getTags().isEmpty()) {
                 throw new IllegalArgumentException("Transfer must NOT have tags");
             }
-        }
-
-        else {
+        } else {
             throw new IllegalArgumentException("Unknown transaction type");
         }
     }
-
-
-    private void validateTransactionOwnership(Transaction tx) {
-        Long ownerId = tx.getOwner().getId();
-
-        if (tx.getSourceAccount() != null &&
-                !tx.getSourceAccount().getOwner().getId().equals(ownerId)) {
-            throw new IllegalArgumentException("Source account does not belong to transaction owner");
-        }
-
-        if (tx.getDestinationAccount() != null &&
-                !tx.getDestinationAccount().getOwner().getId().equals(ownerId)) {
-            throw new IllegalArgumentException("Destination account does not belong to transaction owner");
-        }
-
-        if (tx.getCategory() != null &&
-                !tx.getCategory().getOwner().getId().equals(ownerId)) {
-            throw new IllegalArgumentException("Category does not belong to transaction owner");
-        }
-
-        if (tx.getTags() != null) {
-            tx.getTags().forEach(tag -> {
-                if (!tag.getOwner().getId().equals(ownerId)) {
-                    throw new IllegalArgumentException("Tag does not belong to transaction owner");
-                }
-            });
-        }
-    }
-
-
 }
