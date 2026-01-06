@@ -1,19 +1,12 @@
 package com.example.expensetracker.controller;
 
-import com.example.expensetracker.dto.account.AccountCreateRequest;
-import com.example.expensetracker.dto.account.AccountUpdateRequest;
-import com.example.expensetracker.dto.account.AccountResponse;
-import com.example.expensetracker.dto.account.AccountBalanceResponse;
-import com.example.expensetracker.dto.account.AccountSummaryResponse;
-import com.example.expensetracker.dto.account.AccountDetailResponse;
-
+import com.example.expensetracker.dto.account.*;
 import com.example.expensetracker.service.AccountService;
-
-import org.springframework.web.bind.annotation.*;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/accounts")
@@ -31,15 +24,15 @@ public class AccountController {
         return accountService.create(request);
     }
 
-    // GET /api/accounts?ownerId=1
+    // GET /api/accounts?activeOnly=true
     @GetMapping
-    public List<AccountSummaryResponse> listByOwner(
-            @RequestParam Long ownerId,
+    public List<AccountSummaryResponse> listMyAccounts(
             @RequestParam(required = false) Boolean activeOnly
     ) {
-        return accountService.listByOwnerWithBalance(ownerId, activeOnly);
+        return accountService.listMyAccountsWithBalance(activeOnly);
     }
 
+    // GET /api/accounts/{id}?limit=...&from=...&to=...
     @GetMapping("/{id}")
     public AccountDetailResponse detail(
             @PathVariable Long id,
@@ -50,16 +43,15 @@ public class AccountController {
         return accountService.getDetail(id, limit, from, to);
     }
 
+    // GET /api/accounts/{id}/balance
     @GetMapping("/{id}/balance")
     public AccountBalanceResponse balance(@PathVariable Long id) {
         return accountService.getBalance(id);
     }
 
-    // PATCH Update
+    // PATCH /api/accounts/{id}
     @PatchMapping("/{id}")
     public AccountResponse update(@PathVariable Long id, @RequestBody AccountUpdateRequest request) {
         return accountService.update(id, request);
     }
-
-
 }

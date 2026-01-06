@@ -7,8 +7,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class CategoryCreateRequest {
 
-    private Long ownerId;
     private String name;
     private String description;
-    private String colorHex;   // ej "#FF8800"
+    private String colorHex;
 }

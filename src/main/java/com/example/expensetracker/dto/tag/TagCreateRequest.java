@@ -7,6 +7,5 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class TagCreateRequest {
 
-    private Long ownerId;
     private String name;
 }

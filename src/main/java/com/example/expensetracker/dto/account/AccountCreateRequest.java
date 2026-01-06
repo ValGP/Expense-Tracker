@@ -10,12 +10,8 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 public class AccountCreateRequest {
 
-    private Long ownerId;
     private String name;
     private AccountType type;
-
-    // por ahora asumimos misma moneda del user (o ARS del seed)
     private String currencyCode;
-
     private BigDecimal initialBalance;
 }

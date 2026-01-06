@@ -1,8 +1,8 @@
 package com.example.expensetracker.controller;
 
 import com.example.expensetracker.dto.tag.TagCreateRequest;
-import com.example.expensetracker.dto.tag.TagUpdateRequest;
 import com.example.expensetracker.dto.tag.TagResponse;
+import com.example.expensetracker.dto.tag.TagUpdateRequest;
 import com.example.expensetracker.service.TagService;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,19 +18,15 @@ public class TagController {
         this.tagService = tagService;
     }
 
-    // POST /api/tags
     @PostMapping
     public TagResponse create(@RequestBody TagCreateRequest request) {
         return tagService.create(request);
     }
 
-    // GET /api/tags?ownerId=1
+    // GET /api/tags?activeOnly=true
     @GetMapping
-    public List<TagResponse> listByOwner(
-            @RequestParam Long ownerId,
-            @RequestParam(required = false) Boolean activeOnly
-    ) {
-        return tagService.listByOwner(ownerId, activeOnly);
+    public List<TagResponse> listMine(@RequestParam(required = false) Boolean activeOnly) {
+        return tagService.listMine(activeOnly);
     }
 
     @PatchMapping("/{id}")
