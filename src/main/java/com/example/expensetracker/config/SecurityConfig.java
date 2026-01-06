@@ -31,6 +31,7 @@ public class SecurityConfig {
                         // 🔒 protegemos la API
                         .requestMatchers("/api/**").authenticated()
 
+
                         // cualquier otra ruta no prevista, cerrada
                         .anyRequest().denyAll()
                 )

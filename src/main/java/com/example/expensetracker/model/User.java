@@ -34,6 +34,8 @@ public class User {
     // Relación con Currency
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "default_currency_code")
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Currency defaultCurrency;
 
     private LocalDateTime createdAt;
