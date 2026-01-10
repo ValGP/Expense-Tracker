@@ -12,7 +12,7 @@ Built with Spring Boot and JWT-based authentication.
 - CORS configuration for React frontend
 
 ## Tech Stack
-- Java 17
+- Java 21
 - Spring Boot
 - Spring Security
 - JPA / Hibernate
