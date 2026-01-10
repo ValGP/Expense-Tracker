@@ -5,7 +5,7 @@ import com.example.expensetracker.dto.summary.SummaryResponse;
 import com.example.expensetracker.enums.TransactionState;
 import com.example.expensetracker.enums.TransactionType;
 import com.example.expensetracker.repository.TransactionRepository;
-import com.example.expensetracker.repository.UserRepository;
+import com.example.expensetracker.security.CurrentUserService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,23 +18,21 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class SummaryService {
 
-    private final UserRepository userRepository;
+    private final CurrentUserService currentUserService;
     private final TransactionRepository transactionRepository;
 
-    public SummaryService(UserRepository userRepository, TransactionRepository transactionRepository) {
-        this.userRepository = userRepository;
+    public SummaryService(CurrentUserService currentUserService,
+                          TransactionRepository transactionRepository) {
+        this.currentUserService = currentUserService;
         this.transactionRepository = transactionRepository;
     }
 
-    public SummaryResponse getSummary(Long ownerId, LocalDate from, LocalDate to, Integer top) {
+    public SummaryResponse getMySummary(LocalDate from, LocalDate to, Integer top) {
 
-        if (ownerId == null) throw new IllegalArgumentException("ownerId is required");
         if (from == null || to == null) throw new IllegalArgumentException("from and to are required");
         if (from.isAfter(to)) throw new IllegalArgumentException("from must be <= to");
 
-        // valida que el user exista
-        userRepository.findById(ownerId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + ownerId));
+        Long ownerId = currentUserService.getId();
 
         BigDecimal income = transactionRepository.sumAmountByOwnerAndTypeAndStateInPeriod(
                 ownerId, TransactionType.INCOME, TransactionState.CONFIRMED, from, to

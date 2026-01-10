@@ -263,7 +263,9 @@ public class TransactionService {
     // ---------------------------------------------------------
     public List<TransactionResponse> getMyTransactions() {
         User owner = currentUserService.get();
-        return transactionRepository.findAllByOwner(owner)
+
+        return transactionRepository
+                .findAllByOwnerAndStateNot(owner, TransactionState.CANCELED)
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -279,7 +281,8 @@ public class TransactionService {
 
         User owner = currentUserService.get();
 
-        return transactionRepository.findAllByOwnerAndOperationDateBetween(owner, from, to)
+        return transactionRepository
+                .findAllByOwnerAndStateNotAndOperationDateBetween(owner, TransactionState.CANCELED, from, to)
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -310,9 +313,9 @@ public class TransactionService {
             }
 
             return transactionRepository
-                    .findByOwnerAndOperationDateBetweenAndSourceAccount_IdOrOwnerAndOperationDateBetweenAndDestinationAccount_Id(
-                            owner, from, to, accountId,
-                            owner, from, to, accountId,
+                    .findByOwnerAndStateNotAndOperationDateBetweenAndSourceAccount_IdOrOwnerAndStateNotAndOperationDateBetweenAndDestinationAccount_Id(
+                            owner, TransactionState.CANCELED, from, to, accountId,
+                            owner, TransactionState.CANCELED, from, to, accountId,
                             pageable
                     )
                     .stream()
@@ -321,9 +324,9 @@ public class TransactionService {
         }
 
         return transactionRepository
-                .findByOwnerAndSourceAccount_IdOrOwnerAndDestinationAccount_Id(
-                        owner, accountId,
-                        owner, accountId,
+                .findByOwnerAndStateNotAndSourceAccount_IdOrOwnerAndStateNotAndDestinationAccount_Id(
+                        owner, TransactionState.CANCELED, accountId,
+                        owner, TransactionState.CANCELED, accountId,
                         pageable
                 )
                 .stream()

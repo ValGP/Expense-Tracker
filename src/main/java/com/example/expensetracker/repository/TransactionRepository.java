@@ -23,8 +23,19 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     // Listado de transacciones del usuario
     List<Transaction> findAllByOwner(User owner);
 
+    // ✅ Listado EXCLUYENDO un estado (ej: CANCELED)
+    List<Transaction> findAllByOwnerAndStateNot(User owner, TransactionState state);
+
     // Por período (del usuario)
     List<Transaction> findAllByOwnerAndOperationDateBetween(User owner, LocalDate from, LocalDate to);
+
+    // ✅ Por período EXCLUYENDO un estado (ej: CANCELED)
+    List<Transaction> findAllByOwnerAndStateNotAndOperationDateBetween(
+            User owner,
+            TransactionState state,
+            LocalDate from,
+            LocalDate to
+    );
 
     // Para update/cancel/confirm: transacción solo si es del usuario
     Optional<Transaction> findByIdAndOwnerId(Long id, Long ownerId);
@@ -36,10 +47,24 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             Pageable pageable
     );
 
+    // ✅ Cuenta como Source o Destination EXCLUYENDO un estado (ej: CANCELED)
+    List<Transaction> findByOwnerAndStateNotAndSourceAccount_IdOrOwnerAndStateNotAndDestinationAccount_Id(
+            User owner1, TransactionState state1, Long sourceAccountId,
+            User owner2, TransactionState state2, Long destinationAccountId,
+            Pageable pageable
+    );
+
     // Cuenta como Source o Destination dentro de un período (del usuario)
     List<Transaction> findByOwnerAndOperationDateBetweenAndSourceAccount_IdOrOwnerAndOperationDateBetweenAndDestinationAccount_Id(
             User owner1, LocalDate from1, LocalDate to1, Long sourceAccountId,
             User owner2, LocalDate from2, LocalDate to2, Long destinationAccountId,
+            Pageable pageable
+    );
+
+    // ✅ Cuenta como Source o Destination dentro de un período EXCLUYENDO un estado (ej: CANCELED)
+    List<Transaction> findByOwnerAndStateNotAndOperationDateBetweenAndSourceAccount_IdOrOwnerAndStateNotAndOperationDateBetweenAndDestinationAccount_Id(
+            User owner1, TransactionState state1, LocalDate from1, LocalDate to1, Long sourceAccountId,
+            User owner2, TransactionState state2, LocalDate from2, LocalDate to2, Long destinationAccountId,
             Pageable pageable
     );
 
