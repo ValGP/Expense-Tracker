@@ -52,6 +52,7 @@ public class SecurityConfig {
                         // públicos
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
+                        .requestMatchers("/demo/reset").permitAll()
 
                         // 🔒 protegemos la API
                         .requestMatchers("/api/**").authenticated()

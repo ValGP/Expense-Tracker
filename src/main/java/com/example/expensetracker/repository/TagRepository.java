@@ -18,4 +18,8 @@ public interface TagRepository extends JpaRepository<Tag, Long> {
     List<Tag> findAllByIdInAndOwnerId(List<Long> ids, Long ownerId);
 
     Optional<Tag> findByIdAndOwnerId(Long id, Long ownerId);
+    Optional<Tag> findByOwnerAndNameIgnoreCase(User owner, String name);
+
+    void deleteByOwner(User owner);
+
 }

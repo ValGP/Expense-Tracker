@@ -15,4 +15,10 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
 
     // 🔒 ownership
     Optional<Account> findByIdAndOwnerId(Long id, Long ownerId);
+
+    Optional<Account> findByOwnerAndName(User owner, String name);
+
+    void deleteByOwner(User owner);
+
+
 }

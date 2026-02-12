@@ -40,6 +40,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     // Para update/cancel/confirm: transacción solo si es del usuario
     Optional<Transaction> findByIdAndOwnerId(Long id, Long ownerId);
 
+
     // Cuenta como Source o Destination (del usuario)
     List<Transaction> findByOwnerAndSourceAccount_IdOrOwnerAndDestinationAccount_Id(
             User owner1, Long sourceAccountId,
@@ -148,4 +149,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             @Param("to") LocalDate to,
             Pageable pageable
     );
+
+
+    void deleteByOwner(User owner);
+
 }

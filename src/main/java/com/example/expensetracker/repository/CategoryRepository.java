@@ -15,4 +15,8 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     // 🔒 ownership
     Optional<Category> findByIdAndOwnerId(Long id, Long ownerId);
+    Optional<Category> findByOwnerAndNameIgnoreCase(User owner, String name);
+
+    void deleteByOwner(User owner);
+
 }
